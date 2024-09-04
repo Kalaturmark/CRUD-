@@ -1,0 +1,201 @@
+﻿@using System.Data.Entity
+@model IEnumerable<Student>
+
+@{
+    Layout = null;
+    var db = new ApplicationDbContext();
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>CRUD Operations with AJAX</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" />
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Student List</h2>
+        <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#createStudentModal">
+            Create New Student
+        </button>
+
+        <!-- Student List -->
+        <table class="table table-striped mt-3">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Age</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var student in db.Students.ToList())
+                {
+                    <tr id="row-@student.Id">
+                        <td>@student.Name</td>
+                        <td>@student.Age</td>
+                        <td>
+                            <button class="btn btn-success btn-sm editBtn" data-id="@student.Id" data-name="@student.Name" data-age="@student.Age">Edit</button>
+                            <button class="btn btn-danger btn-sm deleteBtn" data-id="@student.Id">Delete</button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <!-- Create Modal -->
+        <div class="modal fade" id="createStudentModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Create Student</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="createStudentForm">
+                            <div class="form-group">
+                                <label for="Name">Name</label>
+                                <input type="text" class="form-control" id="Name" name="Name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="Age">Age</label>
+                                <input type="number" class="form-control" id="Age" name="Age" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Modal -->
+        <div class="modal fade" id="editStudentModal" tabindex="-1" role="dialog">
+            <div class="modal-dialog" role="document">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Edit Student</h5>
+                        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                            <span aria-hidden="true">&times;</span>
+                        </button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="editStudentForm">
+                            <input type="hidden" id="EditId" name="Id" />
+                            <div class="form-group">
+                                <label for="EditName">Name</label>
+                                <input type="text" class="form-control" id="EditName" name="Name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="EditAge">Age</label>
+                                <input type="number" class="form-control" id="EditAge" name="Age" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Save</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        $('#createStudentForm').on('submit', function (e) {
+            e.preventDefault();
+            $.ajax({
+                url: '@Url.Action("CreateStudent")',
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function (result) {
+                    location.reload();
+                }
+            });
+        });
+        
+        $('.editBtn').on('click', function () {
+            $('#EditId').val($(this).data('id'));
+            $('#EditName').val($(this).data('name'));
+            $('#EditAge').val($(this).data('age'));
+            $('#editStudentModal').modal('show');
+        });
+        
+        $('#editStudentForm').on('submit', function (e) {
+            e.preventDefault();
+            $.ajax({
+                url: '@Url.Action("EditStudent")',
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function (result) {
+                    location.reload();
+                }
+            });
+        });
+        
+        $('.deleteBtn').on('click', function () {
+            if (confirm("Are you sure you want to delete this student?")) {
+                $.ajax({
+                    url: '@Url.Action("DeleteStudent")',
+                    type: 'POST',
+                    data: { id: $(this).data('id') },
+                    success: function (result) {
+                        location.reload();
+                    }
+                });
+            }
+        });
+    </script>
+
+    @functions {
+        // Define the database context
+        public class ApplicationDbContext : DbContext
+        {
+            public DbSet<Student> Students { get; set; }
+        }
+        
+        public class Student
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public int Age { get; set; }
+        }
+        
+        public ActionResult CreateStudent(Student student)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Students.Add(student);
+                db.SaveChanges();
+                return Content("Success");
+            }
+            return Content("Error");
+        }
+        
+        public ActionResult EditStudent(Student student)
+        {
+            if (ModelState.IsValid)
+            {
+                db.Entry(student).State = EntityState.Modified;
+                db.SaveChanges();
+                return Content("Success");
+            }
+            return Content("Error");
+        }
+        
+        public ActionResult DeleteStudent(int id)
+        {
+            var student = db.Students.Find(id);
+            if (student != null)
+            {
+                db.Students.Remove(student);
+                db.SaveChanges();
+                return Content("Success");
+            }
+            return Content("Error");
+        }
+    }
+</body>
+</html>
